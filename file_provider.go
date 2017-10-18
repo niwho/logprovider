@@ -36,7 +36,7 @@ func (hc *DayHourClock) C(dur SegDuration) <-chan time.Time {
 			case t := <-ticker.C:
 				if dur == HourDur {
 					currentPoint = t.Hour()
-				} else if dur == HourDur {
+				} else if dur == DayDur {
 					currentPoint = t.Day()
 				}
 				if currentPoint != checkPoint {
