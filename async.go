@@ -22,6 +22,8 @@ type AsyncFrame struct {
 	providers []IPROVIDER
 	workerNum int
 	isRunning int32
+	stopFlag  bool
+	idleNum   int32
 }
 
 func NewAsyncFrame(workerNum int, prds ...IPROVIDER) *AsyncFrame {
@@ -69,19 +71,18 @@ func (af *AsyncFrame) Run() {
 
 func (af *AsyncFrame) runOuter() {
 	for {
-		select {
-		case <-af.stop:
-			af.stop <- struct{}{}
+		if af.stopFlag {
 			return
-		default:
-			af.runrun()
 		}
+		af.runrun()
 	}
 
 }
 
 func (af *AsyncFrame) runrun() {
+	atomic.AddInt32(&af.idleNum, 1)
 	defer func() {
+		atomic.AddInt32(&af.idleNum, -1)
 		if err := recover(); err != nil {
 			const size = 64 << 20
 			buf := make([]byte, size)
@@ -106,6 +107,7 @@ func (af *AsyncFrame) runrun() {
 			}
 			af.flush <- struct{}{}
 		case <-af.stop:
+			af.stopFlag = true
 			af.cleanBuf()
 			for _, provider := range af.providers {
 				provider.Flush()
@@ -134,7 +136,13 @@ func (af *AsyncFrame) Close() {
 		return
 	}
 	af.stop <- struct{}{}
-	<-af.stop
+	for {
+		if atomic.LoadInt32(&af.idleNum) == 0 {
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+
 }
 
 // Flush
