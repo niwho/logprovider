@@ -1,10 +1,8 @@
 package logprovier
 
 import (
-	"context"
 	"fmt"
 	"os"
-	"runtime"
 	"sync"
 	"time"
 
@@ -19,6 +17,7 @@ type EsProvider struct {
 	*elasticsearch.EsClient
 	sync.Mutex
 	ticker <-chan time.Time
+	level  int
 
 	indexBase    string
 	currentIndex string
@@ -33,17 +32,17 @@ func NewEsProvider(indexBase, typ string) *EsProvider {
 	}
 }
 
-func (ep *EsProvider) Init() error {
+func (ep *EsProvider) Init() (err error) {
 	t := time.Now()
 	needIndex := ep.indexBase + fmt.Sprintf(DateFmt, t.Year(), t.Month(), t.Day())
 	if needIndex != ep.currentIndex {
-		err := ep.CreateEsIndex(needIndex, 2, 0, 60)
+		err = ep.CreateEsIndex(needIndex, 2, 0, 60)
 		if err == nil {
 			ep.currentIndex = needIndex
 		}
 	}
 
-	return err
+	return
 }
 
 func (ep *EsProvider) doCheck() error {
@@ -58,6 +57,7 @@ func (ep *EsProvider) doCheck() error {
 		}
 	default:
 	}
+	return nil
 }
 
 func (ep *EsProvider) SetLevel(l int) {
