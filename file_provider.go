@@ -68,14 +68,15 @@ type FileProvider struct {
 	enableRotate bool
 	hourTicker   <-chan time.Time
 
-	fd       *os.File
-	filename string
-	dur      SegDuration
+	fd           *os.File
+	filename     string
+	dur          SegDuration
+	reservedDays int
 
 	buf chan []byte
 }
 
-func NewFileProvider(filename string, dur SegDuration) *FileProvider {
+func NewFileProvider(filename string, dur SegDuration, reservedDays int) *FileProvider {
 	rotate := false
 	if dur != NoDur {
 		rotate = true
@@ -87,6 +88,7 @@ func NewFileProvider(filename string, dur SegDuration) *FileProvider {
 		dur:          dur,
 		buf:          make(chan []byte, 16),
 		hourTicker:   NewDayHourTicker(dur),
+		reservedDays: reservedDays,
 	}
 	provider.Init()
 	return provider
@@ -166,5 +168,7 @@ func (fp *FileProvider) timeFilename() (string, error) {
 	if fp.dur == DayDur {
 		fmtStr = "2006-01-02"
 	}
+	removedFile := absPath + "." + time.Now().Add(-time.Duration(fp.reservedDays)*time.Hour*24).Format(fmtStr)
+	os.Remove(removedFile)
 	return absPath + "." + time.Now().Format(fmtStr), nil
 }
